@@ -1,0 +1,511 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.webjjang.board.mapper.BoardMapper">
+
+	<select id="list" resultType="com.webjjang.board.vo.BoardVO">
+		select rnum, no, title, writer, writeDate, hit
+
+		from(
+
+		select rownum rnum,
+		no, title, writer, writeDate, hit
+
+		from(
+
+		select no, title, writer,
+		writeDate, hit
+
+		from board
+
+		<include refid="search" />
+		<include refid="date_search" />
+
+		<include refid="sort" />
+
+		)
+
+		)
+
+		where rnum between #{startRow} and #{endRow}
+	</select>
+
+	<select id="getCount" resultType="java.lang.Integer">
+
+		select count(*) from board
+		<include refid="search" />
+		<include refid="date_search" />
+
+	</select>
+
+	<!-- 게시판 쓰기 -->
+	<insert id="write">
+		insert into board(no, title, content, writer, file_name, userid)
+		values(board_seq.nextval, #{title}, #{content}, #{writer},  #{file_name}, #{userid})
+	</insert>
+
+	<!-- 게시판 글보기 -->
+	<select id="view" resultType="com.webjjang.board.vo.BoardVO">
+
+		select * from board
+		where no = #{no}
+	</select>
+
+
+	<update id="increase">
+		update board set hit =hit +1
+		where no = #{no}
+
+
+	</update>
+	<sql id="sort">
+	<if test="!(sort != null and sort !=''.toString())">
+	order by no desc
+	</if>
+	<if test="(sort != null and sort !=''.toString())">
+		<if test="sort =='1u'.toString()">
+			order by no ASC
+		</if>
+		<if test="sort =='1d'.toString()">
+			order by no desc
+		</if>
+		<if test="sort =='2u'.toString()">
+			order by title ASC
+		</if>
+		<if test="sort =='2d'.toString()">
+			order by title desc
+		</if>
+		<if test="sort =='3u'.toString()">
+			order by writer ASC
+		</if>
+		<if test="sort =='3d'.toString()">
+			order by writer desc
+		</if>
+		<if test="sort =='4u'.toString()">
+			order by writedate ASC
+		</if>
+		<if test="sort =='4d'.toString()">
+			order by writedate desc
+		</if>
+		<if test="sort =='5u'.toString()">
+			order by hit ASC
+		</if>
+		<if test="sort =='5d'.toString()">
+			order by hit desc
+		</if>
+	</if>
+	</sql>
+
+	<sql id="search">
+		<!-- 검색어가 존재하는경우에만 검색을 실행한다. mybytis 문서 참조 -->
+
+		<if test="word != null and word !=''.toString()">
+			where ( 2 = 1
+			<!-- 2글자 이상인 경우 : String 취급, 한 글자인 경우:char 취급 => toString()를 이용해서 문자열로 
+				만듬 -->
+			<if test="key == 't'.toString()">
+				<!-- concat(문자열, 문자열) : 2개만 연결, "||" : 문자열 이어 붙이는 연산자 concat(a,b)를 이용하여 
+					연결 -->
+				or title like '%' ||#{word} ||'%'
+			</if>
+			<if test="key == 'c'.toString()">
+				or content like '%' ||#{word} ||'%'
+			</if>
+			<if test="key == 'w'.toString()">
+				or writer like '%' ||#{word} ||'%'
+			</if>
+			<if test="key == 'tc'.toString()">
+				or title like '%' ||#{word} ||'%'
+				or content like '%'
+				||#{word} ||'%'
+			</if>
+			<if test="key == 'tw'.toString()">
+				or title like '%' ||#{word} ||'%'
+				or writer like '%'
+				||#{word} ||'%'
+			</if>
+			<if test="key == 'cw'.toString()">
+				or content like '%' ||#{word} ||'%'
+				or writer like '%
+				'||#{word} ||'%'
+			</if>
+			<if test="key == 'all'">
+				or title like '%' ||#{word} ||'%'
+				or content like '%'
+				||#{word} ||'%'
+				or writer like '%' ||#{word} ||'%'
+			</if>
+			)
+		</if>
+	</sql>
+	<sql id="date_search">
+		
+		<!-- 동시에 start,end 들어온경우 -->
+		<if test="(start_date !=null and start_date !=''.toString()) and (end_date !=null and end_date !=''.toString())">
+			<if test="word != null and word !=''.toString()">
+			and
+			</if>
+			<if test="!(word != null and word !=''.toString())">
+				where
+			</if>
+			(writedate BETWEEN TO_DATE( #{start_date}, 'YYYY-MM-DD')
+			AND TO_DATE( #{end_date}, 'YYYY-MM-DD')+1)
+		</if>
+		
+		<!--  start만 들어온경우 -->
+		<if test="(start_date !=null and start_date !=''.toString()) and !(end_date !=null and end_date !=''.toString())">
+			<if test="word != null and word !=''.toString()">
+			and
+			</if>
+			<if test="!(word != null and word !=''.toString())">
+				where
+			</if>
+			(writedate BETWEEN TO_DATE( #{start_date}, 'YYYY-MM-DD')
+			AND TO_DATE(sysdate))
+		</if>
+		
+		<!-- end만 들어온경우 -->
+		<if test="!(start_date !=null and start_date !=''.toString()) and (end_date !=null and end_date !=''.toString())">
+			<if test="word != null and word !=''.toString()">
+			and	
+			</if>
+			<if test="!(word != null and word !=''.toString())">
+				where
+			</if>
+			(writedate BETWEEN TO_DATE('2020-03-01', 'YYYY-MM-DD')
+			AND TO_DATE( #{end_date}, 'YYYY-MM-DD')+1)
+		</if>
+		
+	</sql>
+	<!-- 게시판 수정 -->
+	<insert id="update">
+		update board
+		set title = #{title}, content =
+		#{content},
+		file_name= #{file_name}
+		where no =#{no} 
+	</insert>
+	<!-- 게시판 글삭제 -->
+	<delete id="delete">
+		delete from board
+		where no = #{no}
+	</delete>
+	
+	<!-- 유저 로그인 체크 -->
+	<select id="user_login_check" resultType="com.webjjang.board.vo.UserVO">
+
+		select * from user_t 
+		where userid= #{userid} and userpw = #{userpw}
+	</select>
+	<!-- 유저 로그인 체크 -->
+	<select id="id_check" resultType="int">
+
+		select COUNT(*) from user_t 
+		where userid= #{userid}
+	</select>	
+	
+	<insert id="signup" >
+
+		insert into user_t(userid, username, userpw, name, birth, phone)
+		values(#{userid},#{username},#{userpw},#{name},#{birth},#{phone})
+	</insert>
+	
+	
+	<select id="user_info" resultType="com.webjjang.board.vo.BoardVO">
+		select rnum, no, title, writer, writeDate, hit
+
+		from(
+
+		select rownum rnum,
+		no, title, writer, writeDate, hit
+
+		from(
+
+		select no, title, writer,
+		writeDate, hit
+
+		from board where userid= #{userid}
+		)
+
+		)
+
+		where rnum between #{startRow} and #{endRow}
+	</select>
+
+	<select id="getCount_user_info" resultType="java.lang.Integer">
+
+		select count(*) from board where userid= #{userid}
+	
+	</select>
+	<select id="user_data" resultType="com.webjjang.board.vo.UserVO">
+
+		select * from user_t where userid = #{userid}
+	</select>	
+	
+	
+<!-- ================================================================================================공지사항	 -->
+	<!-- 공지사항 메인페이지 리스트 -->
+	<select id="notice_list"
+	resultType="com.webjjang.board.vo.NoticeVO">
+	select rnum, no, title, writer, writeDate, hit
+
+	from(
+
+	select rownum rnum,
+	no, title, writer, writeDate, hit
+	
+	from(
+
+	select no, title, writer,
+	writeDate, hit
+
+	from notice
+
+	<if test="word != null and word !=''.toString()">
+			where ( 2 = 1 or title like '%' ||#{word} ||'%')
+		</if>
+		<include refid="date_search" />
+		order by no desc
+	)
+
+	)
+	where rnum between #{startRow} and #{endRow}
+	
+	</select>
+	
+	<!-- 페이지 이동을 위한 공지사항 총갯수 구하기 -->	
+	<select id="notice_getCount" resultType="java.lang.Integer">
+
+		select count(*) from notice
+		<if test="word != null and word !=''.toString()">
+			where ( 2 = 1 or title like '%' ||#{word} ||'%')
+		</if>
+		<include refid="date_search" />
+
+	</select>
+	<!-- 공지사항 상세보기 내용 -->
+	<select id="notice_view" resultType="com.webjjang.board.vo.NoticeVO">
+
+		select * from notice
+		where no = #{no}
+	</select>
+
+	<!-- 공지사항 조회수 증가 -->
+	<update id="notice_increase">
+		update notice set hit =hit +1
+		where no = #{no}
+
+	</update>
+	<!-- 공지사항 관리자 로그인 체크 -->
+	<select id="login_check" resultType="com.webjjang.board.vo.AdminVO">
+
+		select * from admin 
+		where userid= #{userid} and userpw = #{userpw }
+	</select>
+	<!-- 공지사항 글쓰기 -->
+	<insert id="notice_write">
+		insert into notice(no, title, content, writer, file_name)
+		values(notice_seq.nextval, #{title}, #{content}, #{writer}, #{file_name})
+	</insert>
+	<!-- 공지사항 수정 -->
+	<update id="notice_update">
+		update notice
+		set title = #{title}, content =
+		#{content},
+		writer =#{writer}
+		where no =#{no}
+	</update>
+	<!-- 공지사항 삭제 -->
+		<delete id="notice_delete">
+		delete from notice
+		where no = #{no}
+	</delete>
+	
+	<select id="notice_list_popup"
+	resultType="com.webjjang.board.vo.NoticeVO">
+	select rnum, no, title, writer, writeDate, hit, popup_date
+
+	from(
+
+	select rownum rnum,
+	no, title, writer, writeDate, hit ,popup_date
+	
+	from(
+
+	select no, title, writer,
+	writeDate, hit, popup_date
+
+	from notice where pop=1 order by popup_date 
+	)
+	
+	)
+	where rnum between #{startRow} and #{endRow}
+	
+	</select>
+	
+		<!-- 페이지 이동을 위한 공지사항 총갯수 구하기 -->	
+	<select id="notice_getCount_popup" resultType="java.lang.Integer">
+
+		select count(*) from notice where pop=1
+	</select>
+	
+	<update id="popup_push">
+		update notice set pop = 1 , popup_date = #{popup_date}
+		where no = #{no}
+	</update>
+	
+	<update id="popup_delete">
+		update notice set pop = 0
+		where no = #{no}
+	</update>
+	
+	
+	<select id="popup_list" resultType="java.lang.String">
+	
+	select no from notice where pop=1 
+	
+	</select>
+	
+	
+	<!-- // 검색순위를 위한 테이블 -->
+	<update id="rank" >
+	
+	MERGE INTO rank
+            USING DUAL
+            ON (value = #{word})
+            WHEN MATCHED THEN
+                      UPDATE SET
+                            count = count+1
+            WHEN NOT MATCHED THEN
+                      INSERT (value) 
+                                 VALUES (#{word})
+	</update>
+	
+		<!-- rank 상위 5개 가져오기 -->
+	<select id="rank_data" resultType="com.webjjang.board.vo.rank">
+	 select value, count
+	 from(
+	 select value, count from rank order by count desc
+	 )
+	  rank where rownum <![CDATA[ <= ]]> 5
+	</select>
+	<!-- hit 상위 5개 가져오기 -->
+	<select id="hit_data" resultType="com.webjjang.board.vo.NoticeVO">
+	select no, title, hit
+	 from(
+	 select no, title, hit from notice order by hit desc
+	 )
+	  rank where rownum <![CDATA[ <= ]]> 5
+	
+	</select>
+	<!-- 스케쥴 popup삭제 -->
+	<update id="schedul_popup">
+		update notice set pop = 0
+		where popup_date <![CDATA[ <= ]]>  #{now}
+	</update>
+	
+	<!-- 검색 순위 삭제 -->
+	<delete id="schedul_search">
+		delete from rank
+	</delete>
+	
+	
+	
+	<select id="user_list"
+	resultType="com.webjjang.board.vo.UserVO">
+	select userid, username, user_date
+
+	from(
+
+	select rownum rnum,
+	userid, username, user_date
+	
+	from(
+
+	select userid, username, user_date
+
+	from user_t  
+	
+			<include refid="user_search" />
+		
+	)
+	)
+	where rnum between #{startRow} and #{endRow}
+	
+	</select>
+	<sql id="user_search">
+		
+			<if test="word != null and word !=''.toString()">
+			where ( 2 = 1
+			<!-- 2글자 이상인 경우 : String 취급, 한 글자인 경우:char 취급 => toString()를 이용해서 문자열로 
+				만듬 -->
+			<if test="key == 't'.toString()">
+				<!-- concat(문자열, 문자열) : 2개만 연결, "||" : 문자열 이어 붙이는 연산자 concat(a,b)를 이용하여 
+					연결 -->
+				or userid like '%' ||#{word} ||'%'
+			</if>
+			<if test="key == 'c'.toString()">
+				or username like '%' ||#{word} ||'%'
+			</if>
+				)
+			</if>
+		
+		<!-- 동시에 start,end 들어온경우 -->
+		<if test="(start_date !=null and start_date !=''.toString()) and (end_date !=null and end_date !=''.toString())">
+			<if test="word != null and word !=''.toString()">
+			and
+			</if>
+			<if test="!(word != null and word !=''.toString())">
+				where
+			</if>
+			(user_date BETWEEN TO_DATE( #{start_date}, 'YYYY-MM-DD')
+			AND TO_DATE( #{end_date}, 'YYYY-MM-DD')+1)
+		</if>
+		
+		<!--  start만 들어온경우 -->
+		<if test="(start_date !=null and start_date !=''.toString()) and !(end_date !=null and end_date !=''.toString())">
+			<if test="word != null and word !=''.toString()">
+			and
+			</if>
+			<if test="!(word != null and word !=''.toString())">
+				where
+			</if>
+			(user_date BETWEEN TO_DATE( #{start_date}, 'YYYY-MM-DD')
+			AND TO_DATE(sysdate))
+		</if>
+		
+		<!-- end만 들어온경우 -->
+		<if test="!(start_date !=null and start_date !=''.toString()) and (end_date !=null and end_date !=''.toString())">
+			<if test="word != null and word !=''.toString()">
+			and	
+			</if>
+			<if test="!(word != null and word !=''.toString())">
+				where
+			</if>
+			(user_date BETWEEN TO_DATE('2020-03-01', 'YYYY-MM-DD')
+			AND TO_DATE( #{end_date}, 'YYYY-MM-DD')+1)
+		</if>
+		order by user_date
+	</sql>
+	
+	
+		<!-- 페이지 이동을 위한 공지사항 총갯수 구하기 -->	
+	<select id="getCount_user_list" resultType="java.lang.Integer">
+
+		select count(*) from user_t
+		 <include refid="user_search" />
+	</select>
+	<!-- 유저 정보 삭제 -->
+	<delete id="user_delete">
+		delete from user_t
+		where userid = #{id}
+	</delete>
+
+	<!-- 유저 정보 삭제 시 게시판도 삭제 -->
+	<delete id="user_board_delete">
+		delete from board
+		where userid = #{id}
+	</delete>
+	
+</mapper>
